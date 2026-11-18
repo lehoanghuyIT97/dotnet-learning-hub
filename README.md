@@ -5,7 +5,7 @@ Website học .NET Backend với giao diện dark mode.
 ## Công nghệ
 - Frontend: React + TypeScript + Vite
 - Backend: ASP.NET Core Web API (.NET 10)
-- Database: SQLite + Entity Framework Core
+- Database: Azure SQL Database + Entity Framework Core
 - Lưu tiến độ checklist và ghi chú vào database local.
 
 ## Yêu cầu
@@ -58,28 +58,42 @@ dotnet-learning-hub/
 ```
 
 ## Database
-SQLite được tạo tự động tại:
-`backend/DotNetLearning.Api/learninghub.db`
+API kết nối thẳng tới Azure SQL. Chuỗi kết nối không nằm trong git.
 
-Không cần cài SQL Server hoặc Docker cho bản local này.
+Trên App Service (`dotnet-learning-hub-api`), thêm Application settings:
+
+- `DatabaseProvider` = `SqlServer`
+- `ConnectionStrings__DefaultConnection` = connection string Azure SQL
+- `AllowedOrigins` = URL frontend, ví dụ `https://<name>.azurestaticapps.net`
+
+Connection string dạng:
+
+```text
+Server=tcp:<server>.database.windows.net,1433;Initial Catalog=<database>;User ID=<user>;Password=<password>;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;
+```
+
+SQL server cần bật firewall **Allow Azure services**. Login cần quyền tạo bảng, vì lần chạy đầu EF Core gọi `EnsureCreated`.
+
+Chạy local, dữ liệu nằm trên Azure SQL. Chuỗi kết nối nằm trong `backend/DotNetLearning.Api/.env` (file này không commit):
+
+```text
+ConnectionStrings__DefaultConnection=Server=tcp:<server>.database.windows.net,1433;Initial Catalog=<database>;User ID=<user>;Password=<password>;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;
+```
+
+```bash
+cd backend/DotNetLearning.Api
+dotnet run
+```
+
+API local: http://localhost:5080
+
+Trên SQL server phải thêm IP máy bạn vào firewall. "Allow Azure services" chỉ cho App Service, không cho máy local.
 
 ## Lưu ý
-- Checklist và ghi chú được lưu qua ASP.NET Core API vào SQLite.
+- Checklist và ghi chú được lưu qua API vào Azure SQL.
 - Roadmap, resources và exercises được định nghĩa sẵn trong frontend.
-- Đây là phiên bản local đầu tiên. Chưa có đăng nhập người dùng, phân quyền hoặc đồng bộ cloud.
-- Không đưa file `learninghub.db` chứa dữ liệu cá nhân lên GitHub công khai.
+- Chưa có đăng nhập người dùng hay phân quyền.
+- Không commit connection string hay file `learninghub.db`.
 
-
-## Azure deployment preparation
-
-This revision supports SQLite locally and Azure SQL Database in the cloud.
-
-Configure these App Service application settings:
-- `DatabaseProvider` = `SqlServer`
-- `ConnectionStrings__DefaultConnection` = your Azure SQL connection string
-- `AllowedOrigins` = your Static Web Apps URL, e.g. `https://<name>.azurestaticapps.net`
-
-For the frontend build, set `VITE_API_BASE_URL` to:
-`https://<your-app-service-name>.azurewebsites.net/api`
-
-The starter schema is created on first run with EF Core `EnsureCreated`. For later schema changes, use EF Core migrations. Never commit production database credentials.
+Frontend đang gọi API tại:
+`https://dotnet-learning-hub-api-hjhyadcah7b4h8aq.eastasia-01.azurewebsites.net/api`

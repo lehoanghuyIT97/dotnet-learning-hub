@@ -1,19 +1,35 @@
 using DotNetLearning.Api.Data;
 using DotNetLearning.Api.Models;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+
+LoadDotEnv();
 
 var builder = WebApplication.CreateBuilder(args);
 
-var databaseProvider = builder.Configuration["DatabaseProvider"] ?? "Sqlite";
+// Azure SQL is the default. Set DatabaseProvider=Sqlite only for a local file database.
+var databaseProvider = builder.Configuration["DatabaseProvider"] ?? "SqlServer";
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var useSqlServer = databaseProvider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase);
+
+if (useSqlServer && string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException(
+        "Azure SQL connection string is missing. Set ConnectionStrings__DefaultConnection " +
+        "in backend/DotNetLearning.Api/.env for local runs, or on the App Service when deployed. " +
+        "Example: Server=tcp:<server>.database.windows.net,1433;Initial Catalog=<database>;" +
+        "User ID=<user>;Password=<password>;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;");
+}
 
 builder.Services.AddDbContext<LearningDbContext>(options =>
 {
-    if (databaseProvider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase))
+    if (useSqlServer)
     {
-        if (string.IsNullOrWhiteSpace(connectionString))
-            throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required for SqlServer.");
-        options.UseSqlServer(connectionString);
+        options.UseSqlServer(connectionString, sql =>
+        {
+            sql.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null);
+            sql.CommandTimeout(30);
+        });
     }
     else
     {
@@ -37,15 +53,54 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
-    await db.Database.EnsureCreatedAsync();
+    try
+    {
+        await db.Database.EnsureCreatedAsync();
+    }
+    catch (Exception ex)
+    {
+        var server = "(not set)";
+        if (useSqlServer && !string.IsNullOrWhiteSpace(connectionString))
+        {
+            server = new SqlConnectionStringBuilder(connectionString).DataSource;
+        }
+
+        throw new InvalidOperationException(
+            $"Cannot open the database (provider={databaseProvider}, server={server}). " +
+            "For Azure SQL, confirm the connection string, allow Azure services on the SQL firewall, " +
+            "and give the login permission to create tables.",
+            ex);
+    }
 }
 
 app.UseCors("Frontend");
 app.UseSwagger();
 app.UseSwaggerUI();
 
-app.MapGet("/", () => Results.Ok(new { name = ".NET Learning Hub API", status = "running", databaseProvider }));
-app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
+app.MapGet("/", () => Results.Ok(new
+{
+    name = ".NET Learning Hub API",
+    status = "running",
+    databaseProvider,
+    databaseConfigured = !string.IsNullOrWhiteSpace(connectionString)
+}));
+
+app.MapGet("/health", async (LearningDbContext db) =>
+{
+    try
+    {
+        var connected = await db.Database.CanConnectAsync();
+        return connected
+            ? Results.Ok(new { status = "healthy", database = "connected", databaseProvider })
+            : Results.Json(new { status = "unhealthy", database = "disconnected", databaseProvider }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+    catch (Exception ex)
+    {
+        return Results.Json(
+            new { status = "unhealthy", database = "disconnected", databaseProvider, error = ex.GetBaseException().Message },
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+});
 
 app.MapGet("/api/progress", async (LearningDbContext db) =>
     Results.Ok(await db.ProgressItems.ToListAsync()));
@@ -103,6 +158,39 @@ app.MapDelete("/api/notes/{id:int}", async (int id, LearningDbContext db) =>
 });
 
 app.Run();
+
+static void LoadDotEnv()
+{
+    var candidates = new List<string>
+    {
+        Path.Combine(Directory.GetCurrentDirectory(), ".env"),
+        Path.Combine(Directory.GetCurrentDirectory(), "backend", "DotNetLearning.Api", ".env")
+    };
+
+    var dir = new DirectoryInfo(AppContext.BaseDirectory);
+    for (var i = 0; i < 6 && dir is not null; i++, dir = dir.Parent)
+        candidates.Add(Path.Combine(dir.FullName, ".env"));
+
+    var path = candidates.FirstOrDefault(File.Exists);
+    if (path is null) return;
+
+    foreach (var rawLine in File.ReadAllLines(path))
+    {
+        var line = rawLine.Trim();
+        if (line.Length == 0 || line.StartsWith('#')) continue;
+
+        var separator = line.IndexOf('=');
+        if (separator <= 0) continue;
+
+        var key = line[..separator].Trim();
+        var value = line[(separator + 1)..].Trim();
+        if (value.Length >= 2 && ((value.StartsWith('"') && value.EndsWith('"')) || (value.StartsWith('\'') && value.EndsWith('\''))))
+            value = value[1..^1];
+
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(key)))
+            Environment.SetEnvironmentVariable(key, value);
+    }
+}
 
 record ProgressUpdate(bool Completed);
 record NoteRequest(string? Title, string? Content);

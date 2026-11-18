@@ -6,6 +6,7 @@ import {
   Target, Trash2, X
 } from 'lucide-react'
 import { exercises, resources, stages } from './data'
+import { LessonReader } from './components/LessonReader'
 
 type Progress = { id: number; itemId: string; completed: boolean; updatedAt: string }
 type Note = { id: number; title: string; content: string; updatedAt: string }
@@ -13,8 +14,13 @@ type Tab = 'overview' | 'roadmap' | 'notes' | 'resources' | 'exercises'
 
 const API = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5080/api').replace(/\/$/, '')
 
+// Danh sách phẳng các bài học theo đúng thứ tự lộ trình, dùng cho điều hướng bài trước/sau.
+const flatLessons = stages.flatMap(stage => stage.lessons.map(lesson => ({ lesson, stage })))
+const validLessonIds = new Set(flatLessons.map(x => x.lesson.id))
+
 function App() {
   const [tab, setTab] = useState<Tab>('overview')
+  const [openLessonId, setOpenLessonId] = useState<string | null>(null)
   const [progress, setProgress] = useState<Record<string, boolean>>({})
   const [notes, setNotes] = useState<Note[]>([])
   const [expanded, setExpanded] = useState<number[]>([1])
@@ -55,8 +61,9 @@ function App() {
 
   useEffect(() => { loadData() }, [])
 
-  const totalLessons = stages.reduce((sum, stage) => sum + stage.lessons.length, 0)
-  const completedCount = Object.values(progress).filter(Boolean).length
+  const totalLessons = flatLessons.length
+  // Chỉ đếm các bài còn tồn tại trong lộ trình (tiến độ cũ của bài đã đổi ID sẽ bị bỏ qua)
+  const completedCount = Object.entries(progress).filter(([id, done]) => done && validLessonIds.has(id)).length
   const percent = totalLessons ? Math.round(completedCount / totalLessons * 100) : 0
   const stageStats = useMemo(() => stages.map(s => {
     const done = s.lessons.filter(l => progress[l.id]).length
@@ -112,6 +119,20 @@ function App() {
     setTab('notes')
   }
 
+  function openLesson(id: string) {
+    setOpenLessonId(id)
+    setTab('roadmap')
+    window.scrollTo({ top: 0 })
+  }
+
+  function goToTab(next: Tab) {
+    setTab(next)
+    setOpenLessonId(null)
+  }
+
+  const openIndex = openLessonId ? flatLessons.findIndex(x => x.lesson.id === openLessonId) : -1
+  const openEntry = openIndex >= 0 ? flatLessons[openIndex] : null
+
   const navItems = [
     { id: 'overview' as Tab, label: 'Tổng quan', icon: LayoutDashboard },
     { id: 'roadmap' as Tab, label: 'Lộ trình học', icon: GraduationCap },
@@ -130,7 +151,7 @@ function App() {
       <nav>
         {navItems.map(item => {
           const Icon = item.icon
-          return <button key={item.id} className={`nav-item ${tab === item.id ? 'active' : ''}`} onClick={() => setTab(item.id)}>
+          return <button key={item.id} className={`nav-item ${tab === item.id ? 'active' : ''}`} onClick={() => goToTab(item.id)}>
             <Icon size={18}/><span>{item.label}</span>{tab === item.id && <span className="nav-active-dot"/>}
           </button>
         })}
@@ -138,7 +159,7 @@ function App() {
       <div className="sidebar-bottom">
         <div className="goal-card">
           <div className="goal-icon"><Target size={17}/></div>
-          <div><strong>Mục tiêu của bạn</strong><p>Trở thành .NET Backend Developer</p></div>
+          <div><strong>Mục tiêu của bạn</strong><p>Từ Flutter Developer thành .NET Backend Developer</p></div>
         </div>
         <div className="profile">
           <div className="avatar">.N</div>
@@ -160,7 +181,7 @@ function App() {
       <div className="content">
         {tab === 'overview' && <section>
           <div className="welcome-row">
-            <div><div className="eyebrow"><Sparkles size={14}/> YOUR LEARNING JOURNEY</div><h1>Chào mừng trở lại<span className="accent">.</span></h1><p className="lead">Từng bước xây dựng nền tảng vững chắc để trở thành .NET Backend Developer.</p></div>
+            <div><div className="eyebrow"><Sparkles size={14}/> YOUR LEARNING JOURNEY</div><h1>Chào mừng trở lại<span className="accent">.</span></h1><p className="lead">Lộ trình dành cho Flutter developer: tận dụng những gì đã biết để chuyển sang .NET Backend nhanh nhất.</p></div>
             <div className="date-chip"><span className="date-dot"/>{new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}</div>
           </div>
 
@@ -178,7 +199,7 @@ function App() {
             </div>
             <div className="stat-card">
               <div className="stat-top"><span>GIAI ĐOẠN HỌC</span><div className="stat-icon blue"><GraduationCap size={18}/></div></div>
-              <div className="stat-value">{stageStats.filter(s => s.percent === 100).length}<small>/6</small></div>
+              <div className="stat-value">{stageStats.filter(s => s.percent === 100).length}<small>/{stages.length}</small></div>
               <div className="stat-foot">Giai đoạn đã hoàn thành</div>
             </div>
             <div className="stat-card">
@@ -188,9 +209,9 @@ function App() {
             </div>
           </div>
 
-          <div className="section-heading"><div><h2>Tiếp tục hành trình</h2><p>Lộ trình được thiết kế theo từng bước từ nền tảng đến chuyên sâu.</p></div><button className="text-button" onClick={() => setTab('roadmap')}>Xem toàn bộ lộ trình <ChevronRight size={16}/></button></div>
+          <div className="section-heading"><div><h2>Tiếp tục hành trình</h2><p>Lộ trình được thiết kế theo từng bước từ nền tảng đến chuyên sâu.</p></div><button className="text-button" onClick={() => goToTab('roadmap')}>Xem toàn bộ lộ trình <ChevronRight size={16}/></button></div>
           <div className="stage-list">
-            {stageStats.map((stage, index) => <button className="stage-row" key={stage.id} onClick={() => {setTab('roadmap'); setExpanded(old => old.includes(stage.id) ? old : [...old, stage.id])}}>
+            {stageStats.map((stage, index) => <button className="stage-row" key={stage.id} onClick={() => {goToTab('roadmap'); setExpanded(old => old.includes(stage.id) ? old : [...old, stage.id])}}>
               <div className={`stage-number ${stage.percent === 100 ? 'done' : ''}`}>{stage.percent === 100 ? <Check size={17}/> : String(stage.id).padStart(2, '0')}</div>
               <div className="stage-main"><div className="stage-title">{stage.title}</div><div className="stage-sub">{stage.subtitle}</div><div className="mini-track"><div style={{width: `${stage.percent}%`}}/></div></div>
               <div className="stage-meta"><strong>{stage.percent}%</strong><small>{stage.done}/{stage.lessons.length} lessons</small></div><ChevronRight size={17} className="muted"/>
@@ -198,7 +219,7 @@ function App() {
           </div>
           <div className="bottom-grid">
             <div className="panel next-panel"><div className="panel-title"><div><h3>Gợi ý bước tiếp theo</h3><p>Học theo thứ tự để không bỏ sót kiến thức.</p></div><div className="panel-icon"><Flame size={18}/></div></div>
-              {(() => { const next = stages.flatMap(s => s.lessons.map(l => ({...l, stage: s.title}))).find(l => !progress[l.id]); return next ? <div className="next-lesson"><div className="lesson-kicker">{next.stage}</div><strong>{next.title}</strong><p>{next.detail}</p><button className="primary-button" onClick={() => setTab('roadmap')}>Đi đến bài học <ChevronRight size={16}/></button></div> : <div className="empty-state">Bạn đã hoàn thành toàn bộ bài học trong roadmap. Tuyệt vời!</div> })()}
+              {(() => { const next = stages.flatMap(s => s.lessons.map(l => ({...l, stage: s.title}))).find(l => !progress[l.id]); return next ? <div className="next-lesson"><div className="lesson-kicker">{next.stage}</div><strong>{next.title}</strong><p>{next.detail}</p><button className="primary-button" onClick={() => openLesson(next.id)}>Học bài này <ChevronRight size={16}/></button></div> : <div className="empty-state">Bạn đã hoàn thành toàn bộ bài học trong roadmap. Tuyệt vời!</div> })()}
             </div>
             <div className="panel quick-panel"><div className="panel-title"><div><h3>Lối tắt</h3><p>Truy cập nhanh công cụ học tập.</p></div></div>
               <button className="quick-link" onClick={() => setTab('notes')}><div className="quick-icon violet"><FileText size={17}/></div><span><strong>Ghi chú kiến thức</strong><small>Lưu lại điều quan trọng</small></span><ChevronRight size={16}/></button>
@@ -208,8 +229,22 @@ function App() {
           </div>
         </section>}
 
-        {tab === 'roadmap' && <section>
-          <div className="page-heading"><div className="eyebrow"><GraduationCap size={14}/> LEARNING PATH</div><h1>Lộ trình học <span className="accent">.NET</span></h1><p className="lead">6 giai đoạn từ C# căn bản đến xây dựng hệ thống Backend thực tế.</p></div>
+        {tab === 'roadmap' && openEntry && <LessonReader
+          key={openEntry.lesson.id}
+          lesson={openEntry.lesson}
+          stage={openEntry.stage}
+          position={openEntry.stage.lessons.findIndex(l => l.id === openEntry.lesson.id) + 1}
+          total={openEntry.stage.lessons.length}
+          completed={!!progress[openEntry.lesson.id]}
+          prev={flatLessons[openIndex - 1]}
+          next={flatLessons[openIndex + 1]}
+          onBack={() => { setExpanded(old => old.includes(openEntry.stage.id) ? old : [...old, openEntry.stage.id]); setOpenLessonId(null) }}
+          onToggle={() => toggleLesson(openEntry.lesson.id)}
+          onOpen={openLesson}
+        />}
+
+        {tab === 'roadmap' && !openEntry && <section>
+          <div className="page-heading"><div className="eyebrow"><GraduationCap size={14}/> LEARNING PATH</div><h1>Lộ trình học <span className="accent">.NET</span></h1><p className="lead">{stages.length} giai đoạn dành cho Flutter developer: học C# qua Dart, đi đến xây dựng backend thực tế và kết nối với app Flutter. Bấm vào từng bài để học ngay trên web.</p></div>
           <div className="roadmap-summary"><div><strong>{percent}%</strong><span>hoàn thành tổng lộ trình</span></div><div className="summary-track"><div style={{width: `${percent}%`}}/></div><span className="summary-count">{completedCount}/{totalLessons} lessons</span></div>
           <div className="roadmap-list">
             {stageStats.map(stage => <div className="roadmap-card" key={stage.id}>
@@ -221,7 +256,10 @@ function App() {
               </button>
               {expanded.includes(stage.id) && <div className="lesson-list">{stage.lessons.map((lesson, idx) => <div className={`lesson-item ${progress[lesson.id] ? 'completed' : ''}`} key={lesson.id}>
                 <button className="check-button" onClick={() => toggleLesson(lesson.id)} aria-label="Đánh dấu hoàn thành">{progress[lesson.id] && <Check size={14}/>}</button>
-                <div className="lesson-content"><strong>{String(idx + 1).padStart(2, '0')}. {lesson.title}</strong><p>{lesson.detail}</p></div>
+                <button className="lesson-content lesson-open" onClick={() => openLesson(lesson.id)}>
+                  <strong>{String(idx + 1).padStart(2, '0')}. {lesson.title}</strong><p>{lesson.detail}</p>
+                  <span className="lesson-minutes">~{lesson.minutes} phút đọc</span>
+                </button>
                 <span className={`lesson-status ${progress[lesson.id] ? 'is-done' : ''}`}>{progress[lesson.id] ? 'Completed' : 'To do'}</span>
               </div>)}</div>}
             </div>)}
