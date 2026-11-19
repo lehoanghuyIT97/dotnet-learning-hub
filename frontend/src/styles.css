@@ -17,12 +17,12 @@
 .reader-meta{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-top:14px;font-size:13px;color:#58657a}
 .reader-meta span{display:inline-flex;align-items:center;gap:5px}
 .reader-body{display:flex;flex-direction:column;gap:14px;margin-top:22px}
-.r-p{margin:0;font-size:13px;line-height:1.75;color:#1d2432}
+.r-p{margin:0;font-size:15px;line-height:1.75;color:#1d2432}
 .r-h{margin:14px 0 0;font:600 17px 'Space Grotesk';color:#080a11;letter-spacing:-.3px;padding-top:6px}
-.r-ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:7px;font-size:13px;line-height:1.7;color:#1d2432}
+.r-ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:7px;font-size:15px;line-height:1.7;color:#1d2432}
 .r-ul li::marker{color:#281797}
 .inline-code{font-family:'JetBrains Mono','SF Mono',Menlo,Consolas,monospace;font-size:.88em;background:#e1e6ef;border:1px solid #dfe4ee;color:#09003f;padding:1px 6px;border-radius:5px;white-space:normal}
-.callout{display:flex;gap:11px;align-items:flex-start;border-radius:10px;padding:13px 15px;font-size:13px;line-height:1.65;border:1px solid}
+.callout{display:flex;gap:11px;align-items:flex-start;border-radius:10px;padding:13px 15px;font-size:15px;line-height:1.65;border:1px solid}
 .callout svg{flex:none;margin-top:2px}
 .callout p{margin:3px 0 0}
 .callout.tip{background:#cfe2f0;border-color:#a9cce0;color:#113449}
@@ -31,7 +31,7 @@
 .callout.warn svg{color:#b57d0f}
 .callout.flutter{background:#e1e6ef;border-color:#878bc7;color:#000332}
 .callout.flutter svg{color:#0f0073}
-.callout.flutter strong{color:#00011c;font-size:13px}
+.callout.flutter strong{color:#00011c;font-size:15px}
 .code-block{background:#e3e8f5;border:1px solid #e1e6ef;border-radius:10px;overflow:hidden;min-width:0}
 .code-head{display:flex;align-items:center;gap:10px;padding:7px 12px;background:#ffffff;border-bottom:1px solid #e1e6ef;font-size:13px}
 .code-lang{color:#0d0063;font-weight:700;letter-spacing:.6px;text-transform:uppercase;font-size:13px}
@@ -45,12 +45,12 @@
 .vs-title{font-size:13px;color:#515d72}
 .vs-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .table-wrap{overflow-x:auto;border:1px solid #dfe4ee;border-radius:10px}
-.r-table{width:100%;border-collapse:collapse;font-size:13px;line-height:1.55}
+.r-table{width:100%;border-collapse:collapse;font-size:15px;line-height:1.55}
 .r-table th{background:#ffffff;color:#0d0063;text-align:left;font-size:13px;letter-spacing:.5px;text-transform:uppercase;padding:9px 12px;border-bottom:1px solid #dfe4ee;white-space:nowrap}
 .r-table td{padding:9px 12px;border-bottom:1px solid #e1e6ef;color:#1d2432;vertical-align:top}
 .r-table tr:last-child td{border-bottom:0}
 .reader-cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:26px}
-.reader-cards .panel .r-ul,.reader-cards .panel .r-p{font-size:13px}
+.reader-cards .panel .r-ul,.reader-cards .panel .r-p{font-size:15px}
 .reader-card-title{display:flex;align-items:center;gap:7px;font:600 13px 'Space Grotesk';color:#080a11;margin-bottom:11px}
 .reader-card-title svg{color:#0f0073}
 .reader-links{margin-top:18px;display:flex;flex-direction:column;gap:7px}
@@ -66,4 +66,4 @@
 .nav-lesson strong{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .reader-footer .primary-button,.reader-footer .ghost-button{align-self:flex-start;padding:10px 15px;font-size:13px}
 @media(max-width:900px){.vs-grid,.reader-cards,.reader-nav{grid-template-columns:1fr}}
-@media(max-width:760px){.reader-head h1{font-size:24px}.r-p{font-size:13px}}
+@media(max-width:760px){.reader-head h1{font-size:24px}.r-p{font-size:15px}}
